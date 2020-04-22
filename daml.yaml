@@ -1,0 +1,19 @@
+sdk-version: 1.0.0
+name: temp
+source: daml
+init-script: Setup:initialize
+parties:
+  - borrower
+  - validator
+  - bank1
+  - bank2
+  - bank3
+  - bank4
+  - fakebank
+version: 0.0.1
+dependencies:
+  - daml-prim
+  - daml-stdlib
+  - daml-script
+sandbox-options:
+  - --wall-clock-time

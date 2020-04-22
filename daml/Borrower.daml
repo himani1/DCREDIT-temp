@@ -1,0 +1,29 @@
+module Borrower where
+
+import DataStructure
+import ValidationAuthority
+
+template InitialLoanRequest
+  with
+    personalDetails : PersonalDetails
+    loanRequirementDetails : LoanRequirementDetails
+    collateralDetails : CollateralDetails
+    validationAuthority : Party
+    borrower : Party
+    verifiedRequest : VerifiedRequest
+      
+  where
+    signatory verifiedRequest.borrower
+    observer verifiedRequest.validationAuthority
+
+    controller validationAuthority can
+      Verify : ContractId VerifiedRequest
+        
+        do
+          create verifiedRequest
+
+    controller validationAuthority can
+      Reject : ()
+        do
+          assertMsg "Validation Authority rejected the Initial Request" (1==1)
+

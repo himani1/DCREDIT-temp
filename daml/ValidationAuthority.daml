@@ -1,0 +1,37 @@
+module ValidationAuthority where
+
+import DataStructure
+import Lender
+
+template VerifiedRequest
+  with
+    personalDetails : PersonalDetails
+    loanRequirementDetails : LoanRequirementDetails
+    collateralDetails : CollateralDetails
+    borrower : Party
+    listOfLenders :[Party]
+    validationAuthority : Party
+  where
+    signatory validationAuthority
+    observer listOfLenders
+
+    nonconsuming choice Propose_Offer : ContractId Proposal with
+        
+        lender : Party
+        proposal : Proposal
+      controller lender
+        do
+          assert(lender `elem` listOfLenders)
+          
+          create proposal 
+
+    nonconsuming choice Not_Interested : () with
+
+        lender : Party
+        
+      controller lender
+        do
+          assert(lender `elem` listOfLenders)
+          
+                 
+

@@ -1,0 +1,103 @@
+module Setup where
+
+import Daml.Script
+
+import Borrower
+import DataStructure
+import Lender
+import ValidationAuthority
+
+initialize : Script ()
+initialize = do
+  borrower <- allocatePartyWithHint "AliceBorrower" (PartyIdHint "AliceBorrower")
+  validator <- allocatePartyWithHint "Validator" (PartyIdHint "Validator")
+  bank1 <- allocatePartyWithHint "Axis" (PartyIdHint "Axis")
+  bank2 <- allocatePartyWithHint "HDFC" (PartyIdHint "HDFC")
+  bank3 <- allocatePartyWithHint "PNB" (PartyIdHint "PNB")
+  bank4 <- allocatePartyWithHint "SBI" (PartyIdHint "SBI")
+  fakebank <- allocatePartyWithHint "fake" (PartyIdHint "fake")
+  
+  let
+      borrowerDetail = PersonalDetails with uid = 0010,name = "kamal";phone_no = 123456789;address = "abc";e_mail = "xyz"
+      loanRequirements = LoanRequirementDetails with loan_type = "home";amount_requirement = 100000
+      collateralInformation = CollateralDetails with collateral = "Bond"
+      verifyRequest = VerifiedRequest with personalDetails = borrowerDetail,loanRequirementDetails = loanRequirements,collateralDetails = collateralInformation ,  borrower = borrower , listOfLenders = [bank1,bank2,bank3,bank4],validationAuthority = validator
+      proposalInfo = ProposalDetails with loan_amount_granted = 70000,loan_Interest = 11.5,repayment_year = 3, installment_amount = 2695.36,penalty_charges = 1000.0
+      finalAgreement = FinalAgreement with proposalDetails = proposalInfo,lender = bank1,borrower = borrower
+      proposal_offer = Proposal with proposalDetails = proposalInfo,borrower = borrower,lender = bank1,finalAgreement =finalAgreement
+{- 
+     Genrating test scenario
+    @ borrower raises a request
+    @ request is validated by validation authority and lenders are notified about borrower's request
+    @ lenders (Axis) proposes proposal to borrower 
+    @ borrower accepts proposal and generate a final agreement
+-}
+
+  initialLoanContract <- submit borrower do
+      createCmd InitialLoanRequest with
+        personalDetails = borrowerDetail
+        loanRequirementDetails = loanRequirements
+        collateralDetails = collateralInformation
+        validationAuthority = validator
+        borrower = borrower
+        verifiedRequest = verifyRequest
+
+  verified <- submit validator do
+      exerciseCmd initialLoanContract Verify
+
+  sendProposal <- submit bank1 do   
+       exerciseCmd verified Propose_Offer with lender = bank1 , proposal=proposal_offer
+
+  submit borrower do
+      exerciseCmd sendProposal Accept_Offer
+
+{- 
+     Genrating test scenario
+    @ borrower raises a request
+    @ request is rejected by validation authority.
+    
+-}
+
+  initialLoanContract <- submit borrower do
+      createCmd InitialLoanRequest with
+        personalDetails = borrowerDetail
+        loanRequirementDetails = loanRequirements
+        collateralDetails = collateralInformation
+        validationAuthority = validator
+        borrower = borrower
+        verifiedRequest = verifyRequest
+
+  submit validator do
+       exerciseCmd initialLoanContract Reject
+
+ {- 
+     Genrating test scenario
+    @ borrower raises a request
+    @ request is validated by validation authority and lenders are notified about borrower's request
+    @ lender (Axis Bank) does not entertain request of borrower
+    @ Using fake lender to check security of contract   
+    
+-}
+
+  initialLoanContract <- submit borrower do
+      createCmd InitialLoanRequest with
+        personalDetails = borrowerDetail
+        loanRequirementDetails = loanRequirements
+        collateralDetails = collateralInformation
+        validationAuthority = validator
+        borrower = borrower
+        verifiedRequest = verifyRequest
+
+  verified <- submit validator do
+       exerciseCmd initialLoanContract Verify
+
+  submit bank1 do   
+       exerciseCmd verified Not_Interested with lender = bank1
+
+  submitMustFail fakebank do   
+       exerciseCmd verified Propose_Offer with lender = fakebank, proposal=proposal_offer
+
+  submit bank2 do   
+       exerciseCmd verified Not_Interested with lender = bank2
+
+  pure ()
